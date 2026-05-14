@@ -1,0 +1,12 @@
+.env
+**/.env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+nohup.out
+
+# Large local data (use release / Kaggle / script to obtain)
+*.csv
+datasets/

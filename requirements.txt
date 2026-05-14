@@ -1,0 +1,9 @@
+openai
+python-dotenv
+pandas
+scikit-learn
+langchain
+langchain-community
+faiss-cpu
+sentence-transformers
+tqdm

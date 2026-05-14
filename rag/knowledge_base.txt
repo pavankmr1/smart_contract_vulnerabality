@@ -1,0 +1,75 @@
+SWC-107 Reentrancy Vulnerability
+
+Conditions:
+- External call before state update
+- call.value()
+- low-level call
+- attacker can recursively call function
+
+Mitigation:
+- checks-effects-interactions
+- reentrancy guard
+
+False Positives:
+- external call after state reset
+- pull payment pattern
+
+
+Integer Overflow / Underflow (SWC-101)
+
+Conditions:
+- arithmetic on user-controlled or token amounts without SafeMath or Solidity 0.8+ checked math
+- unchecked blocks wrapping arithmetic that can wrap
+
+Mitigation:
+- Solidity ^0.8 default checked arithmetic
+- OpenZeppelin SafeCast / SafeMath (older compilers)
+- bounds checks before cast or multiply
+
+False Positives:
+- Solidity 0.8+ with no unchecked and no dangerous downcasts
+- values provably bounded by prior checks
+
+
+Timestamp Dependence (SWC-116)
+
+Conditions:
+- block.timestamp or block.number used for randomness, ordering payouts, or critical access windows
+- miner/MEV influence on exact timestamp
+
+Mitigation:
+- avoid time for randomness; use VRF (Chainlink)
+- wide time windows with commit-reveal if ordering matters
+
+False Positives:
+- coarse deadlines only for UX (e.g. sale end) with no value extraction race
+
+
+Access Control (SWC-285 / missing modifiers)
+
+Conditions:
+- external functions changing balances, roles, or admin without onlyOwner / role checks
+- tx.origin used for authentication
+
+Mitigation:
+- OpenZeppelin Ownable / AccessControl
+- msg.sender for auth; separate user vs admin paths
+
+False Positives:
+- intentionally public view functions
+- internal/private functions with no external entry
+
+
+Unchecked External Call / Low-Level Calls
+
+Conditions:
+- call / delegatecall / send without success check
+- ignoring return value from token transfer (some tokens return false)
+
+Mitigation:
+- check success flag; use SafeERC20 for tokens
+- limit target and calldata for low-level calls
+
+False Positives:
+- documented best-effort calls where failure is handled elsewhere
+- patterns where assembly explicitly branches on success
