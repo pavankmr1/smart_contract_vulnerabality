@@ -1,7 +1,6 @@
-import os
-
 from openai import OpenAI
 
+import os
 from pipeline.load_env import load_env
 
 load_env()
@@ -9,74 +8,66 @@ load_env()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "YOUR_API_KEY"))
 
 
-# def detect_candidate(code: str,task):
-#     prompt = f"""
-# You are a smart contract vulnerability detector.
+VULNS = [
+    "reentrancy",
+    "overflow",
+    "access control",
+    "unchecked external call",
+    "timestamp dependency"
+]
 
-# Analyze the Solidity contract.
+def detect_candidates(code):
 
-# Identify:
-# 1. Whether vulnerabilities MAY exist
-# 2. Which vulnerability type is MOST likely
-
-# Possible types:
-# - reentrancy
-# - overflow
-# - access control
-# - timestamp dependency
-# - unchecked external call
-# - safe
-
-# Be conservative.
-
-# Respond EXACTLY:
-
-# CANDIDATE: <type>
-# CONFIDENCE: <low/medium/high>
-
-# Contract:
-# {code}
-# """
-def detect_candidate(code, task):
     prompt = f"""
-You are a smart contract security detector.
+You are a smart contract vulnerability discovery engine.
 
-Focus ONLY on:
-{task}
+Analyze the Solidity contract carefully.
 
-Detect whether this vulnerability exists.
+Identify ALL plausible vulnerabilities.
 
-Respond EXACTLY:
+Possible vulnerabilities:
+- reentrancy
+- overflow
+- access control
+- unchecked external call
+- timestamp dependency
 
-CANDIDATE: yes
+Return ONLY a comma-separated list.
+
+Examples:
+reentrancy, unchecked external call
+
 OR
-CANDIDATE: no
+
+safe
 
 Contract:
 {code}
 """
+
     try:
+
         response = client.chat.completions.create(
             model="gpt-5.4-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0
         )
-        output = (response.choices[0].message.content or "").lower()
 
-        vuln = "safe"
-        for v in [
-            "reentrancy",
-            "overflow",
-            "access control",
-            "timestamp",
-            "unchecked",
-        ]:
-            if v in output:
-                vuln = v
-                break
+        output = response.choices[0].message.content.lower()
 
-        return vuln, output
+        candidates = []
+
+        for vuln in VULNS:
+            if vuln in output:
+                candidates.append(vuln)
+
+        if len(candidates) == 0:
+            candidates = ["safe"]
+
+        return candidates, output
 
     except Exception as e:
         print("Detector Error:", e)
-        return "safe", ""
+        return ["safe"], ""

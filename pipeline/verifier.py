@@ -1,8 +1,5 @@
-import os
-import re
-
 from openai import OpenAI
-
+import os
 from pipeline.load_env import load_env
 
 load_env()
@@ -10,54 +7,53 @@ load_env()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "YOUR_API_KEY"))
 
 
-def verify_vulnerability(code: str, vuln_type: str, rag_context: str):
-    prompt = f"""
-You are an expert Ethereum smart contract security auditor.
+def verify_candidate(code, vuln_type, rag_context):
 
-A previous detector suspects:
+    prompt = f"""
+You are an expert Ethereum smart contract auditor.
+
+Potential vulnerability:
 {vuln_type}
 
-Relevant security knowledge:
+Security knowledge:
 {rag_context}
 
 Your task:
-
-1. Analyze exploitability carefully
-2. Determine whether the vulnerability is REAL
-3. Ignore outdated syntax unless exploitable
+1. Determine if this vulnerability is REAL
+2. Check exploitability carefully
+3. Ignore superficial patterns
 4. Reduce false positives
 
 Respond EXACTLY:
 
-ANALYSIS:
-<brief reasoning>
-
-FINAL VERDICT:
-VULNERABLE
+VERDICT: VULNERABLE
 
 OR
 
-FINAL VERDICT:
-SAFE
+VERDICT: SAFE
+
+REASON:
+<short explanation>
 
 Contract:
 {code}
 """
 
     try:
+
         response = client.chat.completions.create(
             model="gpt-5.4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0
         )
-        output = (response.choices[0].message.content or "").lower()
 
-        if re.search(r"final verdict:\s*vulnerable", output):
+        output = response.choices[0].message.content.lower()
+
+        if "vulnerable" in output:
             return 1, output
-        if re.search(r"final verdict:\s*safe", output):
-            return 0, output
-        if "vulnerable" in output and "not vulnerable" not in output:
-            return 1, output
+
         return 0, output
 
     except Exception as e:
