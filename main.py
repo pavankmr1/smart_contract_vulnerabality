@@ -5,6 +5,10 @@ from openai import OpenAI
 
 from pipeline.load_env import load_env
 
+# Open main.py and append these tracking variables inside your active run loop
+from pipeline.exploit_generator import AutomatedExploitGenerator
+
+
 load_env()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "YOUR_API_KEY"))
@@ -123,24 +127,40 @@ def run_pipeline(source_code: str) -> dict:
     # 3. Adversarial Validation Stage
     final_findings = adversarial_verification_stage(source_code, initial_candidates)
     
+    # Inside your run_pipeline coordinator method, right after generating verified findings:
+    exploit_engine = AutomatedExploitGenerator()
+    for flaw in final_findings:
+        flaw["automated_foundry_exploit"] = exploit_engine.synthesize_foundry_exploit(source_code, flaw)
     return {
         "status": "VULNERABLE" if len(final_findings) > 0 else "SAFE",
         "vulnerabilities": final_findings
     }
 
 if __name__ == "__main__":
-    # Test sample reentrancy snippet
+    # Canonical, textbook reentrancy exploit contract to force pipeline activation
     test_contract = """
-    contract VulnerableBank {
-        mapping(address => uint256) public balances;
+    pragma solidity ^0.7.0;
+
+    contract ExploitMeBank {
+        mapping(address => uint256) public userBalances;
+
+        function deposit() public payable {
+            userBalances[msg.sender] += msg.value;
+        }
+
         function withdraw() public {
-            uint256 bal = balances[msg.sender];
-            require(bal > 0);
-            (bool success, ) = msg.sender.call{value: bal}("");
-            require(success);
-            balances[msg.sender] = 0;
+            uint256 balance = userBalances[msg.sender];
+            require(balance > 0, "Zero balance");
+            
+            // CRITICAL FLAW: Low-level call executed BEFORE state mutation
+            (bool success, ) = msg.sender.call{value: balance}("");
+            require(success, "Transfer failed");
+            
+            userBalances[msg.sender] = 0;
         }
     }
     """
+    
+    # Run your complete multi-agent swarm & post-detection retrieval pipeline
     results = run_pipeline(test_contract)
     print(json.dumps(results, indent=4))
